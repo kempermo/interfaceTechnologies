@@ -1,12 +1,9 @@
-//add this to your index.html 
-//<script src="https://unpkg.com/ml5@1/dist/ml5.min.js"></script>
-
 let video;
 let detector;
 let detections = [];
 
 function preload(){
-  detector = ml5.objectDetector("cocossd");
+  detector = ml5.objectDetection("yolo");
 }
 
 function setup() {

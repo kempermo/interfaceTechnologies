@@ -1,6 +1,3 @@
-//add this to your index.html 
-//<script src="https://unpkg.com/ml5@1/dist/ml5.min.js"></script>
-
 let video;
 let bodyPose;
 let poses = [];
@@ -8,7 +5,9 @@ let connections;
 
 function preload() {
   // Load the bodyPose model
-  bodyPose = ml5.bodyPose();
+  bodyPose = ml5.bodyPose(() => {
+    console.log("Model loaded");
+  });
 }
 
 function setup() {
