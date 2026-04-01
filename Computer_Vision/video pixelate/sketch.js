@@ -14,10 +14,10 @@ function draw() {
   video.loadPixels();
   for(let y=0; y<height; y+=20){
     for(let x=0; x<width; x+=20){
-      let pos = (x + y*width)*4;
-      let r = video.pixels[pos];
-      let g = video.pixels[pos+1];
-      let b = video.pixels[pos+2];
+      let index = (x + y*width)*4; //4 is needed because we're looking at an RGBA image
+      let r = video.pixels[index];
+      let g = video.pixels[index+1];
+      let b = video.pixels[index+2];
       //print(c);
       fill(r,g,b);
       noStroke();

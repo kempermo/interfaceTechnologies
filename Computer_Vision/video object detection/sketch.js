@@ -41,5 +41,8 @@ function draw() {
     fill(255);
     textSize(24);
     text(detection.label, detection.x + 10, detection.y + 24);
+    
+    // Draw Confidence
+    text(detection.confidence, detection.x + 10, detection.y + 48);
   }
 }

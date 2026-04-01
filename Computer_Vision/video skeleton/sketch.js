@@ -24,6 +24,12 @@ function setup() {
   connections = bodyPose.getSkeleton();
 }
 
+// Callback function for when bodyPose outputs data
+function gotPoses(results) {
+  // Save the output to the poses variable
+  poses = results;
+}
+
 function draw() {
   // Draw the webcam video
   image(video, 0, 0, width, height);
@@ -72,11 +78,12 @@ function draw() {
     strokeWeight(4);
     stroke(255);
     line(leftHand.x,leftHand.y,rightHand.x,rightHand.y);
-  }
-}
 
-// Callback function for when bodyPose outputs data
-function gotPoses(results) {
-  // Save the output to the poses variable
-  poses = results;
+    let leftEllbow = createVector(poses[0].keypoints[7].x, poses[0].keypoints[7].y);
+    let leftShoulder = createVector(poses[0].keypoints[5].x, poses[0].keypoints[5].y);
+
+    stroke(0,0,255);
+    line(leftHand.x,leftHand.y,leftEllbow.x,leftEllbow.y);
+    line(leftShoulder.x,leftShoulder.y,leftEllbow.x,leftEllbow.y);
+  }
 }
