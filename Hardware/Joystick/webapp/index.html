@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Joystick Visualizer</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0f0f13;
+      color: #e0e0e0;
+      font-family: 'Courier New', monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      gap: 32px;
+    }
+
+    h1 {
+      font-size: 1.1rem;
+      letter-spacing: 0.15em;
+      color: #888;
+      text-transform: uppercase;
+    }
+
+    #connect-btn {
+      padding: 10px 28px;
+      background: #1e6fff;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      font-family: inherit;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+      transition: background 0.15s;
+    }
+    #connect-btn:hover { background: #3a80ff; }
+    #connect-btn:disabled { background: #333; color: #666; cursor: default; }
+
+    #status {
+      font-size: 0.8rem;
+      color: #555;
+      letter-spacing: 0.08em;
+    }
+    #status.connected { color: #4caf50; }
+    #status.error     { color: #f44336; }
+
+    /* Joystick pad */
+    .pad-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    #pad {
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: #1a1a22;
+      border: 2px solid #2a2a38;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Crosshair lines */
+    #pad::before, #pad::after {
+      content: '';
+      position: absolute;
+      background: #2a2a38;
+    }
+    #pad::before {
+      width: 1px; height: 100%;
+      left: 50%; top: 0;
+    }
+    #pad::after {
+      width: 100%; height: 1px;
+      top: 50%; left: 0;
+    }
+
+    #dot {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #1e6fff;
+      box-shadow: 0 0 12px #1e6fff88;
+      position: absolute;
+      transform: translate(-50%, -50%);
+      left: 50%;
+      top: 50%;
+      transition: left 0.04s linear, top 0.04s linear;
+      z-index: 1;
+    }
+
+    /* Values */
+    .values {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .val-box {
+      background: #1a1a22;
+      border: 1px solid #2a2a38;
+      border-radius: 8px;
+      padding: 14px 18px;
+      text-align: center;
+    }
+
+    .val-label {
+      font-size: 0.7rem;
+      color: #555;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .val-number {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #e0e0e0;
+    }
+
+    .val-number.active { color: #4caf50; }
+
+    /* Axis bars */
+    .bars {
+      width: 260px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .bar-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .bar-label {
+      width: 14px;
+      font-size: 0.75rem;
+      color: #666;
+      text-align: right;
+    }
+
+    .bar-track {
+      flex: 1;
+      height: 8px;
+      background: #1a1a22;
+      border-radius: 4px;
+      overflow: hidden;
+      border: 1px solid #2a2a38;
+    }
+
+    .bar-fill {
+      height: 100%;
+      background: #1e6fff;
+      border-radius: 4px;
+      transition: width 0.04s linear;
+      width: 50%;
+    }
+
+    #no-serial {
+      color: #f44336;
+      font-size: 0.8rem;
+      text-align: center;
+      max-width: 300px;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Joystick Visualizer</h1>
+
+  <div id="no-serial" hidden>
+    Web Serial API not supported.<br>
+    Use Chrome or Edge (desktop).
+  </div>
+
+  <button id="connect-btn">Connect Serial</button>
+  <div id="status">disconnected</div>
+
+  <div class="pad-wrapper">
+    <div id="pad"><div id="dot"></div></div>
+  </div>
+
+  <div class="bars">
+    <div class="bar-row">
+      <span class="bar-label">X</span>
+      <div class="bar-track"><div class="bar-fill" id="bar-x"></div></div>
+    </div>
+    <div class="bar-row">
+      <span class="bar-label">Y</span>
+      <div class="bar-track"><div class="bar-fill" id="bar-y"></div></div>
+    </div>
+  </div>
+
+  <div class="values">
+    <div class="val-box">
+      <div class="val-label">X</div>
+      <div class="val-number" id="val-x">—</div>
+    </div>
+    <div class="val-box">
+      <div class="val-label">Y</div>
+      <div class="val-number" id="val-y">—</div>
+    </div>
+    <div class="val-box">
+      <div class="val-label">Button</div>
+      <div class="val-number" id="val-btn">—</div>
+    </div>
+  </div>
+
+  <script>
+    const ADC_MAX = 4095;
+
+    const btn      = document.getElementById('connect-btn');
+    const statusEl = document.getElementById('status');
+    const dot      = document.getElementById('dot');
+    const pad      = document.getElementById('pad');
+    const barX     = document.getElementById('bar-x');
+    const barY     = document.getElementById('bar-y');
+    const valX     = document.getElementById('val-x');
+    const valY     = document.getElementById('val-y');
+    const valBtn   = document.getElementById('val-btn');
+
+    if (!('serial' in navigator)) {
+      document.getElementById('no-serial').hidden = false;
+      btn.disabled = true;
+    }
+
+    let port, reader;
+
+    btn.addEventListener('click', async () => {
+      if (port) {
+        await disconnect();
+      } else {
+        await connect();
+      }
+    });
+
+    async function connect() {
+      try {
+        port = await navigator.serial.requestPort();
+        await port.open({ baudRate: 115200 });
+
+        setStatus('connected', 'connected');
+        btn.textContent = 'Disconnect';
+
+        readLoop();
+      } catch (err) {
+        setStatus('error', 'error: ' + err.message);
+        port = null;
+      }
+    }
+
+    async function disconnect() {
+      btn.textContent = 'Connect Serial';
+      setStatus('', 'disconnected');
+      try {
+        if (reader) { await reader.cancel(); reader = null; }
+        if (port)   { await port.close();   port   = null; }
+      } catch (_) {}
+    }
+
+    async function readLoop() {
+      const decoder = new TextDecoderStream();
+      port.readable.pipeTo(decoder.writable);
+      const lineReader = decoder.readable
+        .pipeThrough(new TransformStream(new LineBreaker()))
+        .getReader();
+      reader = lineReader;
+
+      try {
+        while (true) {
+          const { value, done } = await lineReader.read();
+          if (done) break;
+          parseLine(value);
+        }
+      } catch (err) {
+        if (port) setStatus('error', 'error: ' + err.message);
+      } finally {
+        await disconnect();
+      }
+    }
+
+    function parseLine(line) {
+      try {
+        const d = JSON.parse(line.trim());
+        if (typeof d.x !== 'number') return;
+        updateUI(d.x, d.y, d.btn);
+      } catch (_) {}
+    }
+
+    function updateUI(x, y, btnState) {
+      // Raw values
+      valX.textContent = x;
+      valY.textContent = y;
+      valBtn.textContent = btnState ? 'PRESS' : '·';
+      valBtn.className = 'val-number' + (btnState ? ' active' : '');
+
+      // Bars (0–100%)
+      const pctX = (x / ADC_MAX) * 100;
+      const pctY = (y / ADC_MAX) * 100;
+      barX.style.width = pctX + '%';
+      barY.style.width = pctY + '%';
+
+      // Dot on pad
+      const padR  = pad.offsetWidth / 2;
+      const dotX  = (x / ADC_MAX) * pad.offsetWidth;
+      const dotY  = (y / ADC_MAX) * pad.offsetHeight;
+      // Clamp dot inside circle
+      const cx = dotX - padR;
+      const cy = dotY - padR;
+      const dist = Math.sqrt(cx * cx + cy * cy);
+      const clampR = padR - 14;
+      const scale = dist > clampR ? clampR / dist : 1;
+      dot.style.left = (padR + cx * scale) + 'px';
+      dot.style.top  = (padR + cy * scale) + 'px';
+      dot.style.background = btnState ? '#4caf50' : '#1e6fff';
+      dot.style.boxShadow  = btnState ? '0 0 14px #4caf5099' : '0 0 12px #1e6fff88';
+    }
+
+    function setStatus(cls, text) {
+      statusEl.className = cls;
+      statusEl.textContent = text;
+    }
+
+    // Transform stream that splits on newlines
+    class LineBreaker {
+      constructor() { this.buf = ''; }
+      transform(chunk, ctrl) {
+        this.buf += chunk;
+        const lines = this.buf.split('\n');
+        this.buf = lines.pop();
+        for (const l of lines) if (l.trim()) ctrl.enqueue(l);
+      }
+      flush(ctrl) {
+        if (this.buf.trim()) ctrl.enqueue(this.buf);
+      }
+    }
+  </script>
+</body>
+</html>
