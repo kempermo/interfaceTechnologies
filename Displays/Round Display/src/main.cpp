@@ -1,8 +1,7 @@
 #include <Arduino.h>
-//#include <SPI.h>
-#include <TFT_eSPI.h>  // Hardware-specific library
+#include <TFT_eSPI.h> 
 
-TFT_eSPI tft = TFT_eSPI();  // Invoke library
+TFT_eSPI tft = TFT_eSPI(); 
 
 int angle = 90;
 
@@ -11,9 +10,9 @@ void setup() {
 
   pinMode(8,OUTPUT);
   
-  tft.init();               // Initialize display
+  tft.init();               
   
-  tft.setRotation(0);       // Adjust if needed (0–3)
+  tft.setRotation(0);       
 
   tft.fillScreen(TFT_BLACK);
 
@@ -42,7 +41,7 @@ void loop() {
   if(angle < 360){
     angle++;
   }
-
+  
   // Draw Arc
   tft.drawArc(tft.width()/2, tft.height()/2, 100, 90, 0, angle, 0xffffff, 0xff00ff, 1);
 }
